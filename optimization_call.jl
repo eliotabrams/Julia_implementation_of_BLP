@@ -1,5 +1,5 @@
 """
-mpec_implementation_of_blp.jl
+optimization_call.jl
 
 Code for implementing a BLP model using MPEC to solve for parameters
 """
