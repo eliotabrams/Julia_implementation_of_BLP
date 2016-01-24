@@ -28,18 +28,9 @@ cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_imple
 # Construct f
 function eval_f(param) 
     delta_j = log(data[:,2]) - log(data[:,14]) -  *(data[:,4:7] , param) 
-    g =   [
-        sum(delta_j .* data[:,4]),
-        sum(delta_j .* data[:,5]),
-        sum(delta_j .* data[:,6]),
-        sum(delta_j .* data[:,8]),
-        sum(delta_j .* data[:,9]),
-        sum(delta_j .* data[:,10]),
-        sum(delta_j .* data[:,11]),
-        sum(delta_j .* data[:,12]),
-        sum(delta_j .* data[:,13])
-    ]
-    return dot(g, g)
+    z = [data[:,4:6] data[:,8:13]]
+    vector = *(delta_j', z)
+    return *( *(vector, eye(9)), vector' )[1]
 end 
 
 # id  share   const   x1  x2  x3  price   z1  z2  z3  z4  z5  z6  s0
@@ -47,9 +38,7 @@ end
 data = readdlm("dataset_cleaned.csv", ',')
 data = data[2:529,1:14]
 data = convert(Array{Float64,2},data)
-
 eval_f([1,1,1,1])
-
 results = optimize(eval_f, [0.0, 0.0, 0.0, 0.0])
 results.minimum
 
