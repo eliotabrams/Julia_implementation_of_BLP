@@ -11,10 +11,12 @@ Julia code for implementing a BLP model using MPEC to solve for parameters
 Pkg.add("Ipopt")
 Pkg.add("JuMP")
 Pkg.add("ReverseDiffSource")
+Pkg.add("Optim")
 
 using Ipopt
 using JuMP
 using ReverseDiffSource
+using Optim
 
 cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP/")
 
@@ -24,64 +26,40 @@ cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_imple
 #####################
 
 # Construct f
-function f(param, share, s0, char, instr)
-    return log(share) - log(s0) -  *(char, param)  [char instr]
-end
+function eval_f(param) 
+    delta_j = log(data[:,2]) - log(data[:,14]) -  *(data[:,4:7] , param) 
+    g =   [
+        sum(delta_j .* data[:,4]),
+        sum(delta_j .* data[:,5]),
+        sum(delta_j .* data[:,6]),
+        sum(delta_j .* data[:,8]),
+        sum(delta_j .* data[:,9]),
+        sum(delta_j .* data[:,10]),
+        sum(delta_j .* data[:,11]),
+        sum(delta_j .* data[:,12]),
+        sum(delta_j .* data[:,13])
+    ]
+    return dot(g, g)
+end 
 
-
-log(share) - log(s0) -  *(char, param)  [char instr]
-
-
-# Construct objective 
-function objective(param)
-    g = zeros(10)
-    for i = 2:size(data)[1]
-        g += f(
-                param,
-                data[i,:][2], 
-                data[i,:][14], 
-                data[i,:][4:7], 
-                data[i,:][8:13]
-            )
-    end
-    return sum(g.*g) 
-end
-
-
-param
-share = data[:,2]
-s0 = data[:,14]
-char = data[:,4:7] 
-instr = data[:,8:13]
-
-
-# Import data
 # id  share   const   x1  x2  x3  price   z1  z2  z3  z4  z5  z6  s0
 # 1   2       3       4   5   6   7       8   9   10  11  12  13  14
 data = readdlm("dataset_cleaned.csv", ',')
 data = data[2:529,1:14]
 data = convert(Array{Float64,2},data)
 
+eval_f([1,1,1,1])
 
-share = .2
-s0 = .1
-char = [2, 3, 4, 2]
-param = [1, 1, 1, 1]
-instr = [1, 2, 3, 4, 5, 6]
-f(param, share, s0, char, instr)
-objective(param)
+results = optimize(eval_f, [0.0, 0.0, 0.0, 0.0])
+results.minimum
+
+
 
 # Run GMM
-
-using DualNumbers
-
-g = rdiff(objective, (ones(4),), order=1)
-
+g = rdiff(eval_f, (ones(4),), order=1)
 prob = createProblem(4, objective)
 prob.x = [1.0, 5.0, 5.0, 1.0]
 status = solveProblem(prob)
-
-
 prob = createProblem(
     4, 
     [-100.0,-100.0,-100.0,-100.0], 
@@ -98,7 +76,6 @@ prob = createProblem(
     0
     )
 addOption(prob, "hessian_approximation", "limited-memory")
-
 prob = createProblem(n, x_L, x_U, m, g_L, g_U, 8, 10,
                      eval_f, eval_g, eval_grad_f)
 

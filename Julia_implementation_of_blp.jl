@@ -23,12 +23,12 @@ cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_imple
 
 # Construct f
 function f(param, share, s0, char, instr)
-    return (log(share/float(s0)) -  sum(char.*param)) * cat(1, char, instr)
+    return (log(share) - log(s0) -  dot(char, param)) * cat(1, char[1:3], instr)
 end
 
 # Construct objective 
 function objective(param)
-    g = zeros(10)
+    g = zeros(9)
     for i = 2:size(data)[1]
         g += f(
                 param,
@@ -38,11 +38,12 @@ function objective(param)
                 data[i,:][8:13]
             )
     end
-    return sum(g.*g) 
+    return dot(g, g) 
 end
 
 # Run GMM
 data = readdlm("dataset_cleaned.csv", ',');
+objective([1,1,1,1])
 results = optimize(objective, [0.0, 0.0, 0.0, 0.0])
 results.minimum
 
