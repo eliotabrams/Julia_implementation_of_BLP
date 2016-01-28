@@ -135,6 +135,7 @@ print(status)
 
 println("alpha = ", getValue(alpha))
 println("beta = ", getValue(beta[1:K]))
-
-
+println("piInc = ", getValue(piInc[1:K+1])
+println("piAge = ", getValue(piAge[1:K+1])
+println("sigma = ", getValue(sigma[1:K+1])
 
