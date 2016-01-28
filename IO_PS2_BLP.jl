@@ -1,141 +1,159 @@
-### 2016 Winter Advanced IO PS2 by Eliot Abrams, Hyunmin Park, Alexandre Sollaci
+# 2016 Winter Advanced IO PS2 
+# Hyunmin Park, Eliot Abrams, Alexandre Sollaci
+
+#=
+julia_implementation_of_blp.jl
+
+Julia code for implementing a BLP model using MPEC to solve for parameters
+=#
+
+#####################
+##      Setup      ##
+#####################
+
+Pkg.add("Ipopt")
+Pkg.add("JuMP")
+using Ipopt
+using JuMP
+cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP/")
+
+
+#####################
+##      Data       ##
+#####################
 
 # Load data
-using DataFrames
-product = readtable("dataset_cleaned.csv")
-population = readtable("population_data.csv")
+product = readdlm("dataset_cleaned.csv", ',');
+product = convert(
+    Array{Float64,2},product[2:size(product,1),1:size(product,2)]
+    );
+
+population = readdlm("population_data.csv", ',');
+population = convert(
+    Array{Float64,2},population[2:size(population,1),1:size(population,2)]
+    );
 
 # Define variables
-x = product[:,3:6]
-p = product[:,7]
-z = product[:,8:13]
-s0 = product[:,14]
-s = product[:,2]
-iv = hcat(x,z)
-iv = convert(Array, iv)
+x = product[:,3:6];
+p = product[:,7];
+z = product[:,8:13];
+s0 = product[:,14];
+s = product[:,2];
+iv = [x z];
+inc = population[:,1];
+age = population[:,2];
+v = population[:,3:7];
 
-inc = population[:,1]
-age = population[:,2]
-v = population[:,3:7]
+# Store dimensions
+K = size(x,2);
+L = K+size(z,2);
+J = size(x,1);
+N = size(v,1);
+M = size(v,2);
 
-# Calculate dimensions
-K = size(x,2)
-L = K+size(z,2)
-J = size(x,1)
-N = size(v,1)
-M = size(v,2)
 
-### 
-#Simple Logit Model (From this model, we will obtain the optimal weighting matrix and the starting values for BLP.)
-###
-
+##########################
+##  Simple Logit Model  ##
+##########################
 tic()
-# Setting up the model
-using JuMP
-m = Model()
 
+# Setup the simple logit model
+m = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "logit.txt"));
 
-# Defining variables
-@defVar(m, g[1:L])
-@defVar(m, xi[1:J])
-@defVar(m, alpha)
-@defVar(m, beta[1:K])
+# Define variables
+@defVar(m, g[1:L]);
+@defVar(m, xi[1:J]);
+@defVar(m, alpha);
+@defVar(m, beta[1:K]);
 
-# We minimize the gmm objective 
-@setObjective(m,Min,sum{g[l]^2,l=1:L})
+# We minimize the gmm objective with the identity as the weighting matrix
+# subject to the constraints g = sum_j xi_j iv_j and market share equations
+@setObjective(m, Min, sum{g[l]^2,l=1:L});
+@addConstraint(
+    m, 
+    constr[l=1:L], 
+    g[l]==sum{xi[j]*iv[j,l],j=1:J}
+);
+@addNLConstraint(
+    m, 
+    constr[j=1:J], 
+    xi[j]==log(s[j])-log(s0[j])+alpha*p[j]-sum{beta[k]*x[j,k],k=1:K}
+);
 
-# g = sum_j xi_j iv_j
-for l=1:L
-	@addConstraint(m,g[l]==sum{xi[j]*iv[j,l],j=1:J}) 
-end
-
-# market share equations
-for j=1:J
-	@addNLConstraint(m,xi[j]==log(s[j])-log(s0[j])+alpha*p[j]-sum{beta[k]*x[j,k],k=1:K})
-end
-
-using Ipopt
-setSolver(m,IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "results.txt"))
-status = solve(m)
-
+# Solve the model
+status = solve(m);
+print(status);
+println("alpha = ", getValue(alpha));
+println("beta = ", getValue(beta[1:K]));
 toc()
 
-print(status)
+# Save results to use in the setup of BLP Model
+g_logit=getValue(g);
+xi_logit=getValue(xi);
+alpha_logit=getValue(alpha);
+beta_logit=getValue(beta);
 
-g_logit=getValue(g)
-xi_logit=getValue(xi)
-alpha_logit=getValue(alpha)
-beta_logit=getValue(beta)
 
-println("alpha = ", getValue(alpha))
-println("beta = ", getValue(beta[1:K]))
-
-# Calculating optimal weighting matrix
-Omega = zeros(L, L)
-for j=1:J
-Omega += (xi_logit[j]^2)*iv[j,:]'*iv[j,:]
-end
-W = inv((1/J)*Omega)
-
-### BLP Model
+##########################
+##      BLP Model       ##
+##########################
 tic()
 
-# Setting up the model
-using JuMP
-m = Model() # Set solver to default
+# Calculate the optimal weighting matrix
+W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
+
+# Setup the BLP model
+m = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP.txt"));
 
 # Defining variables - set initial values to estimates from the logit model
-@defVar(m, g[1:L])
-for l in 1:L
-    setValue(g[l], g_logit[l])
-end
-@defVar(m, xi[1:J])
-for j in 1:J
-    setValue(xi[j], xi_logit[j])
-end
-@defVar(m, alpha, start=alpha_logit)
-@defVar(m, beta[1:K])
-for k in 1:K
-    setValue(beta[k], beta_logit[k])
-end
+# LATER WILL WANT TO RUN FOR MULTIPLE STARTING VALUES
+@defVar(m, g[x=1:L], start=(g_logit[x]));
+@defVar(m, xi[x=1:J], start=(xi_logit[x]));
+@defVar(m, alpha, start=alpha_logit);
+@defVar(m, beta[x=1:K], start=beta_logit[x]);
 
 # Defining variables - heterogeneity parameters
-@defVar(m, piInc[1:K+1])
-@defVar(m, piAge[1:K+1])
-@defVar(m, sigma[1:K+1])
+@defVar(m, piInc[1:K+1]);
+@defVar(m, piAge[1:K+1]);
+@defVar(m, sigma[1:K+1]);
 
 # We minimize the gmm objective - using the optimal weighting matrix! 
-@setObjective(m,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L}) 
-
-# g = sum_j xi_j iv_j
-for l in 1:L
-	@addConstraint(m,g[l]==sum{xi[j]*iv[j,l],j=1:J}) 
-end
-
-# market share equations - Note that where we assign each shock could have minor effect on estimation results
+# subject to g = sum_j xi_j iv_j and market share equations - 
+# Note that where we assign each shock could have minor effect on estimation results
 # shock 1 : taste shock to constant
 # shock 2 : taste shock to x1
 # shock 3 : taste shock to x2
 # shock 4 : taste shock to x3
 # shock 5 : taste shock to price
-for j in 1:J
-	@addNLConstraint(m,s[j]==(1/N)*sum{exp(sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[j,k],k=1:K}
--(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[j]+xi[j])
-/(sum{exp(sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],k=1:K}
--(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]+xi[h]),h=1:J}) ,n=1:N})
-end
+@setObjective(m,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
+@addConstraint(
+    m, 
+    constr[l=1:L], 
+    g[l]==sum{xi[j]*iv[j,l],j=1:J}
+);
+@defNLExpr(
+    denom[n=1:N],
+    sum{exp(sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],k=1:K}
+    -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]+xi[h]),h=1:J}
+);
+@addNLConstraint(
+    m,
+    constr[j=1:J], 
+    s[j]==(1/N)*
+        sum{exp(sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[j,k],k=1:K}
+        -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[j]+xi[j])/denom[n]
+       , n=1:N}
+);
 
-using Ipopt
-setSolver(m,IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "results.txt"))
+
+# Solve the model
 status = solve(m)
-
-toc()
-
-print(status)
-
+print(status);
 println("alpha = ", getValue(alpha))
 println("beta = ", getValue(beta[1:K]))
 println("piInc = ", getValue(piInc[1:K+1])
 println("piAge = ", getValue(piAge[1:K+1])
 println("sigma = ", getValue(sigma[1:K+1])
+
+toc()
 
