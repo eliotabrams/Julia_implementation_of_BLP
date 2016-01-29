@@ -15,7 +15,7 @@ Julia code for implementing a BLP model using MPEC to solve for parameters
 #Pkg.add("JuMP")
 using Ipopt
 using JuMP
-#cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
+cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
 
 #####################
 ##      Data       ##
@@ -110,18 +110,17 @@ BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP
 @defVar(BLP, beta[x=1:K], start=beta_logit[x]);
 
 # Defining variables - heterogeneity parameters
-@defVar(BLP, piInc[1:K+1]);
-@defVar(BLP, piAge[1:K+1]);
-@defVar(BLP, sigma[1:K+1]);
+@defVar(BLP, piInc[1:K]);
+@defVar(BLP, piAge[1:K]);
+@defVar(BLP, sigma[1:K]);
 
 # We minimize the gmm objective - using the optimal weighting matrix! 
 # subject to g = sum_j xi_j iv_j and market share equations - 
 # Note that where we assign each shock could have minor effect on estimation results
-# shock 1 : taste shock to constant ????
+# shock 1 : taste shock to price
 # shock 2 : taste shock to x1
 # shock 3 : taste shock to x2
 # shock 4 : taste shock to x3
-# shock 5 : taste shock to price
 @setObjective(BLP,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
 @addConstraint(
     BLP, 
@@ -131,9 +130,9 @@ BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP
 @defNLExpr(
     denom[n=1:N],
     sum{
-        exp(
-            -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]
-            +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],k=1:K}
+        exp(beta[1]
+            -(alpha+piInc[1]*inc[n]+piAge[1]*age[n]+sigma[1]*v[n,1])*p[h]
+            +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],k=2:K}
             +xi[h]
             )
     , h=1:J}
@@ -143,9 +142,9 @@ BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP
     constr[j=1:J], 
     s[j]==(1/N)*
         sum{
-            exp(
-                -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[j]
-                +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[j,k],k=1:K}
+            exp(beta[1]
+                -(alpha+piInc[1]*inc[n]+piAge[1]*age[n]+sigma[1]*v[n,1])*p[j]
+                +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[j,k],k=2:K}
                 +xi[j]
             )/denom[n]
        ,n=1:N}
@@ -158,8 +157,8 @@ status = solve(BLP);
 print(status);
 println("alpha = ", getValue(alpha));
 println("beta = ", getValue(beta[1:K]));
-println("piInc = ", getValue(piInc[1:K+1]);
-println("piAge = ", getValue(piAge[1:K+1]);
-println("sigma = ", getValue(sigma[1:K+1]);
+println("piInc = ", getValue(piInc[1:K]);
+println("piAge = ", getValue(piAge[1:K]);
+println("sigma = ", getValue(sigma[1:K]);
 
 
