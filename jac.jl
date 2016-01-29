@@ -18,7 +18,7 @@ end
 
 # theta = (alpha, beta, piInc, piAge, sigma). Will take derivative w.r.t. (theta, xi) => 1 + K + K + K + K + J variables
 
-num_var = 1 + 4*K + J #number of variables
+num_var = 1 + 4*K + J + L #number of variables oj jacobian: (theta, xi, g). Jacobian form: [ds/dtheta  ds/dxi  0 \\ 0 -Z' eye(g) ]
 
 ################################
 # "Easy to understand version" #
@@ -27,7 +27,7 @@ num_var = 1 + 4*K + J #number of variables
 for row = 1:J # each row is the derivative of s_j wrt (theta,xi);
 
 	values[1 + (row-1)*num_var] = (1/N)*sum{ tau[n,row]*(p[row] - sum{ tau[n,j]*p[j] , j=1:J } ) , n=1:N} #derivatives of s_j w.r.t. alpha
-	values[ 2 + (row-1)*num_var] = 0 # derivative w.r.t. beta_0
+	values[2 + (row-1)*num_var] = 0 # derivative w.r.t. beta_0
 
 	for column_beta = 2:K 
 		values[1 + column_beta + (row-1)*num_var] = (1/N)*sum{ tau[n, row]*( x[row, column_beta] - sum{ tau[n,j]*x[j,column_beta] , j=1:J} , n=1:N) } #w.r.t to beta_2, beta_3, beta_4
@@ -60,7 +60,31 @@ for row = 1:J # each row is the derivative of s_j wrt (theta,xi);
 		else 
 			values[1 + 4*K + column_xi + (row-1)*num_var] = (1/N)*sum{ tau[n,row]*tau[n,column_xi] , n=1:N }
 	end
+
+	for l = 1:L
+		values[row + num_var - L + l + (row-1)*num_var] = 0 # first cluster of zeros
+	end
 end
+
+# J*num_var values defined above. Now we start the "second line" of the jacobian, 0 -Z' eye(g)
+
+for row2 = 1:L
+	for col = 1:4*K+1
+		values[col + J*num_var + (row2-1)*num_var] = 0 #second cluster of zeros
+	end
+
+	for col2 = 1:J 
+		values[col2 + 4*K + 1 + J*num_var + (row2-1)*num_var] = -iv[row2, col2] # -Z'
+	end 
+
+	for col3 = 1:L 
+		if col3 = row2
+			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = g[col3] 
+		else 																	# eye(g)
+			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = 0
+	end
+end 
+
 
 #################################
 # "Put it all together version" #
@@ -90,5 +114,27 @@ for row = 1:J # each row is the derivative of s_j wrt (theta,xi);
 			values[1 + 4*K + column_xi + (row-1)*num_var] = (1/N)*sum{ tau[n,row]*(1-tau[n,row]) , n=1:N }
 		else 
 			values[1 + 4*K + column_xi + (row-1)*num_var] = (1/N)*sum{ tau[n,row]*tau[n,column_xi] , n=1:N }
+	end
+
+	for l = 1:L
+		values[row + num_var - L + l] = 0 # first cluster of zeros
+	end
+
+	# J*num_var values defined above. Now we start the "second line" of the jacobian, 0 -Z' eye(g)
+
+for row2 = 1:L
+	for col = 1:4*K+1
+		values[col + J*num_var + (row2-1)*num_var] = 0 #second cluster of zeros
+	end
+
+	for col2 = 1:J 
+		values[col2 + 4*K + 1 + J*num_var + (row2-1)*num_var] = -iv[row2, col2] # -Z'
+	end 
+
+	for col3 = 1:L 
+		if col3 = row2
+			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = g[col3] 
+		else 																	# eye(g)
+			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = 0
 	end
 end
