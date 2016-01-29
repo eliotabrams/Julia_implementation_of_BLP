@@ -78,7 +78,7 @@ for row2 = 1:L
 	end 
 
 	for col3 = 1:L 
-		if col3 = row2
+		if col3 == row2
 			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = g[col3] 
 		else 																	# eye(g)
 			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = 0
@@ -132,7 +132,7 @@ for row2 = 1:L
 	end 
 
 	for col3 = 1:L 
-		if col3 = row2
+		if col3 == row2
 			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = g[col3] 
 		else 																	# eye(g)
 			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = 0
