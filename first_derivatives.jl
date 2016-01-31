@@ -1,7 +1,7 @@
 
 # Gradient of the objective function
 
-function eval_grad(alpha, beta, piInc, piAge, sigma, x, p, inc, age, v, xi, K, N, J, L, W, grad_obj)
+function eval_grad(K, J, L, W, g, grad_obj)
 
 # Recall gradient is a column vector [0_theta 0_xi 2Wg]
 
