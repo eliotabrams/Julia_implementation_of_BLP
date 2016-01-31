@@ -18,11 +18,15 @@ end
 
 # theta = (alpha, beta, piInc, piAge, sigma). Will take derivative w.r.t. (theta, xi) => 1 + K + K + K + K + J variables
 
-num_var = 1 + 4*K + J + L #number of variables oj jacobian: (theta, xi, g). Jacobian form: [ds/dtheta  ds/dxi  0 \\ 0 -Z' eye(g) ]
+num_var = 1 + 4*K + J + L #number of variables oj jacobian: (theta, xi, g). 
+
+
 
 ################################
 # "Easy to understand version" #
 ################################
+
+# Recall: Jacobian form: [ds/dtheta  ds/dxi  0 \\ 0 -Z' eye(g) ]. The first "for" loop corresponds to the "upper part" pf the matrix.
 
 for row = 1:J # each row is the derivative of s_j wrt (theta,xi);
 
@@ -59,6 +63,7 @@ for row = 1:J # each row is the derivative of s_j wrt (theta,xi);
 			values[1 + 4*K + column_xi + (row-1)*num_var] = (1/N)*sum{ tau[n,row]*(1-tau[n,row]) , n=1:N }
 		else 
 			values[1 + 4*K + column_xi + (row-1)*num_var] = (1/N)*sum{ tau[n,row]*tau[n,column_xi] , n=1:N }
+		end 
 	end
 
 	for l = 1:L
@@ -66,7 +71,7 @@ for row = 1:J # each row is the derivative of s_j wrt (theta,xi);
 	end
 end
 
-# J*num_var values defined above. Now we start the "second line" of the jacobian, 0 -Z' eye(g)
+# J*num_var values defined above. Now we start the "bottom part" of the jacobian, 0 -Z' eye(g)
 
 for row2 = 1:L
 	for col = 1:4*K+1
@@ -82,13 +87,33 @@ for row2 = 1:L
 			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = g[col3] 
 		else 																	# eye(g)
 			values[col3 + num_var - L + J*num_var + (row2-1)*num_var] = 0
+		end 
 	end
 end 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #################################
 # "Put it all together version" #
 #################################
+
+# Recall: Jacobian form: [ds/dtheta  ds/dxi  0 \\ 0 -Z' eye(g) ]. The first "for" loop corresponds to the "upper part" pf the matrix.
 
 for row = 1:J # each row is the derivative of s_j wrt (theta,xi);
 
@@ -114,13 +139,14 @@ for row = 1:J # each row is the derivative of s_j wrt (theta,xi);
 			values[1 + 4*K + column_xi + (row-1)*num_var] = (1/N)*sum{ tau[n,row]*(1-tau[n,row]) , n=1:N }
 		else 
 			values[1 + 4*K + column_xi + (row-1)*num_var] = (1/N)*sum{ tau[n,row]*tau[n,column_xi] , n=1:N }
+		end 
 	end
 
 	for l = 1:L
 		values[row + num_var - L + l] = 0 # first cluster of zeros
 	end
 
-	# J*num_var values defined above. Now we start the "second line" of the jacobian, 0 -Z' eye(g)
+end	# J*num_var values defined above. Now we start the "bottom" of the jacobian, 0 -Z' eye(g)
 
 for row2 = 1:L
 	for col = 1:4*K+1
