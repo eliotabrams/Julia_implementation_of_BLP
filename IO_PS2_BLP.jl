@@ -17,7 +17,7 @@ using Ipopt
 using JuMP
 using DataFrames
 #cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
-EnableNLPResolve()
+#EnableNLPResolve()
 
 #####################
 ##      Data       ##
@@ -49,7 +49,7 @@ M = size(v,2);
 ##########################
 ##  Simple Logit Model  ##
 ##########################
-
+#=
 # Setup the simple logit model
 logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "logit.txt"));
 
@@ -95,15 +95,21 @@ beta_logit=getValue(beta);
 # Calculate the optimal weighting matrix
 iv = convert(Array, iv)
 W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
-
+=#
 # Setup the BLP model
 BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP.txt"));
 
 # Defining variables - set initial values to estimates from the logit model
+#=
 @defVar(BLP, g[x=1:L], start=(g_logit[x]));
 @defVar(BLP, xi[x=1:J], start=(xi_logit[x]));
 @defVar(BLP, alpha, start=alpha_logit);
 @defVar(BLP, beta[x=1:K], start=beta_logit[x]);
+=#
+@defVar(BLP, g[x=1:L]);
+@defVar(BLP, xi[x=1:J]);
+@defVar(BLP, alpha);
+@defVar(BLP, beta[x=1:K]);
 
 # Defining variables - heterogeneity parameters
 @defVar(BLP, piInc[1:K]);
@@ -117,7 +123,8 @@ BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP
 # shock 2 : taste shock to x1
 # shock 3 : taste shock to x2
 # shock 4 : taste shock to x3
-@setObjective(BLP,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
+# @setObjective(BLP,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
+@setObjective(BLP,Min,sum{sum{g[i]*g[j],i=1:L},j=1:L});
 @addConstraint(
     BLP, 
     constr[l=1:L], 
@@ -153,6 +160,8 @@ using ForwardDiff
 testfunction(x) = (exp(x[2]-(x[1]+x[3]*3+x[4]*4+x[5]*5+(x[6]+x[7]*7+x[8]*9+x[9]*10)*20+x[10])) / exp(x[2]-(x[1]+x[3]*3+x[4]*4+x[5]*5)))
 testfunction_grad = ForwardDiff.gradient(testfunction);
 testfunction_grad([10.0,.2,.3,.4,.5,.6,.7,.8,.9,.1])
+sum(f, itr)
+
 =#
 
 status = solve(BLP);
