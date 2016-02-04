@@ -17,6 +17,7 @@ using Ipopt
 using JuMP
 using DataFrames
 cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
+EnableNLPResolve()
 
 #####################
 ##      Data       ##
@@ -76,9 +77,9 @@ logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "l
 status = solve(logit);
 
 # Print the results
-print(status);
-println("alpha = ", getValue(alpha));
-println("beta = ", getValue(beta[1:K]));
+print(status)
+println("alpha = ", getValue(alpha))
+println("beta = ", getValue(beta[1:K]))
 
 # Save results to use in the setup of BLP Model
 g_logit=getValue(g);
@@ -159,11 +160,11 @@ model = getInternalModel(BLP)
 status = solve(BLP);
 
 # Print the results
-print(status);
-println("alpha = ", getValue(alpha));
-println("beta = ", getValue(beta[1:K]));
-println("piInc = ", getValue(piInc[1:K]);
-println("piAge = ", getValue(piAge[1:K]);
-println("sigma = ", getValue(sigma[1:K]);
+print(status)
+println("alpha = ", getValue(alpha))
+println("beta = ", getValue(beta[1:K]))
+println("piInc = ", getValue(piInc[1:K])
+println("piAge = ", getValue(piAge[1:K])
+println("sigma = ", getValue(sigma[1:K])
 
 
