@@ -15,6 +15,7 @@ Julia code for implementing a BLP model using MPEC to solve for parameters
 #Pkg.add("JuMP")
 using Ipopt
 using JuMP
+using DataFrames
 cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
 
 #####################
@@ -22,15 +23,8 @@ cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_imple
 #####################
 
 # Load data
-product = readdlm("dataset_cleaned.csv", ',');
-product = convert(
-    Array{Float64,2},product[2:size(product,1),1:size(product,2)]
-    );
-
-population = readdlm("population_data.csv", ',');
-population = convert(
-    Array{Float64,2},population[2:size(population,1),1:size(population,2)]
-    );
+product = DataFrames.readtable("small_dataset_cleaned.csv", separator = ',', header = true);
+population = DataFrames.readtable("small_population_data.csv", separator = ',', header = true);
 
 # Define variables
 x = product[:,3:6];
@@ -98,6 +92,7 @@ beta_logit=getValue(beta);
 ##########################
 
 # Calculate the optimal weighting matrix
+iv = convert(Array, iv)
 W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
 
 # Setup the BLP model
@@ -128,6 +123,7 @@ BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP
     g[l]==sum{xi[j]*iv[j,l],j=1:J}
 );
 @defNLExpr(
+    BLP,
     denom[n=1:N],
     sum{
         exp(beta[1]
@@ -151,6 +147,15 @@ BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP
 );
 
 # Solve the model
+#=
+using ForwardDiff
+testfunction(x) = (exp(x[2]-(x[1]+x[3]*3+x[4]*4+x[5]*5+(x[6]+x[7]*7+x[8]*9+x[9]*10)*20+x[10])) / exp(x[2]-(x[1]+x[3]*3+x[4]*4+x[5]*5)))
+testfunction_grad = ForwardDiff.gradient(testfunction);
+testfunction_grad([10.0,.2,.3,.4,.5,.6,.7,.8,.9,.1])
+=#
+
+model = buildInternalModel(BLP)
+model = getInternalModel(BLP)
 status = solve(BLP);
 
 # Print the results
