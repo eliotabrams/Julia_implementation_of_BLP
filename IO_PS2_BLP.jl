@@ -16,7 +16,7 @@ Julia code for implementing a BLP model using MPEC to solve for parameters
 using Ipopt
 using JuMP
 using DataFrames
-cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
+#cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
 EnableNLPResolve()
 
 #####################
@@ -155,8 +155,6 @@ testfunction_grad = ForwardDiff.gradient(testfunction);
 testfunction_grad([10.0,.2,.3,.4,.5,.6,.7,.8,.9,.1])
 =#
 
-model = buildInternalModel(BLP)
-model = getInternalModel(BLP)
 status = solve(BLP);
 
 # Print the results
