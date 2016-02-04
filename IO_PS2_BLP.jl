@@ -97,7 +97,7 @@ iv = convert(Array, iv)
 W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
 =#
 # Setup the BLP model
-BLP = Model(solver = IpoptSolver(tol = 1e-5, hessian_approximation="limited-memory", max_iter = 6, output_file = "BLP.txt"));
+BLP = Model(solver = IpoptSolver(tol = 1e-5, hessian_approximation="limited-memory", max_iter = 100, output_file = "BLP.txt"));
 
 # Defining variables - set initial values to estimates from the logit model
 @defVar(BLP, g[x=1:L], start=(g_logit[x]));
@@ -155,7 +155,6 @@ testfunction(x) = (exp(x[2]-(x[1]+x[3]*3+x[4]*4+x[5]*5+(x[6]+x[7]*7+x[8]*9+x[9]*
 testfunction_grad = ForwardDiff.gradient(testfunction);
 testfunction_grad([10.0,.2,.3,.4,.5,.6,.7,.8,.9,.1])
 sum(f, itr)
-
 =#
 
 status = solve(BLP);
