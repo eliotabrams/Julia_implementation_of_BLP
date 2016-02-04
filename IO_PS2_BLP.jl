@@ -17,15 +17,15 @@ using Ipopt
 using JuMP
 using DataFrames
 #cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
-#EnableNLPResolve()
+EnableNLPResolve()
 
 #####################
 ##      Data       ##
 #####################
 
 # Load data
-product = DataFrames.readtable("small_dataset_cleaned.csv", separator = ',', header = true);
-population = DataFrames.readtable("small_population_data.csv", separator = ',', header = true);
+product = DataFrames.readtable("dataset_cleaned.csv", separator = ',', header = true);
+population = DataFrames.readtable("population_data.csv", separator = ',', header = true);
 
 # Define variables
 x = product[:,3:6];
@@ -49,7 +49,7 @@ M = size(v,2);
 ##########################
 ##  Simple Logit Model  ##
 ##########################
-#=
+
 # Setup the simple logit model
 logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "logit.txt"));
 
@@ -91,25 +91,19 @@ beta_logit=getValue(beta);
 ##########################
 ##      BLP Model       ##
 ##########################
-
+#=
 # Calculate the optimal weighting matrix
 iv = convert(Array, iv)
 W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
 =#
 # Setup the BLP model
-BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP.txt"));
+BLP = Model(solver = IpoptSolver(tol = 1e-5, hessian_approximation="limited-memory", max_iter = 6, output_file = "BLP.txt"));
 
 # Defining variables - set initial values to estimates from the logit model
-#=
 @defVar(BLP, g[x=1:L], start=(g_logit[x]));
 @defVar(BLP, xi[x=1:J], start=(xi_logit[x]));
 @defVar(BLP, alpha, start=alpha_logit);
 @defVar(BLP, beta[x=1:K], start=beta_logit[x]);
-=#
-@defVar(BLP, g[x=1:L]);
-@defVar(BLP, xi[x=1:J]);
-@defVar(BLP, alpha);
-@defVar(BLP, beta[x=1:K]);
 
 # Defining variables - heterogeneity parameters
 @defVar(BLP, piInc[1:K]);
@@ -124,7 +118,7 @@ BLP = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "BLP
 # shock 3 : taste shock to x2
 # shock 4 : taste shock to x3
 # @setObjective(BLP,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
-@setObjective(BLP,Min,sum{sum{g[i]*g[j],i=1:L},j=1:L});
+@setObjective(BLP, Min, sum{g[l]^2,l=1:L});
 @addConstraint(
     BLP, 
     constr[l=1:L], 
@@ -170,8 +164,8 @@ status = solve(BLP);
 print(status)
 println("alpha = ", getValue(alpha))
 println("beta = ", getValue(beta[1:K]))
-println("piInc = ", getValue(piInc[1:K])
-println("piAge = ", getValue(piAge[1:K])
-println("sigma = ", getValue(sigma[1:K])
+println("piInc = ", getValue(piInc[1:K]))
+println("piAge = ", getValue(piAge[1:K]))
+println("sigma = ", getValue(sigma[1:K]))
 
 
