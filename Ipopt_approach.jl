@@ -230,10 +230,10 @@ end
 
 A = ones(J,1) #alpha
 B = zeros(J,1) #beta1
-C = ones(J,len - 2) # rest of theta
+C = ones(J,len_theta - 2) # rest of theta
 D = ones(J,J) # xi
 E = ones(L,J) # iv
 F = ones(L,L) # I_g
 
-sparse = [A B C D zero_1 ; zero_2 E  F]
 
+sparse = [A B C D zero_1 ; zero_2 E  F]
