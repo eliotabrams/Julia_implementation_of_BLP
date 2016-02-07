@@ -22,7 +22,7 @@ Ipopt call
 using Ipopt
 using JuMP
 using DataFrames
-#cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
+cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
 
 
 #####################
@@ -63,7 +63,7 @@ logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "l
 @defVar(logit, g[1:L]);
 @defVar(logit, xi[1:J]);
 @defVar(logit, alpha);
-@defVar(logit, beta[1:K]);
+@defVar(logit, beta_par[1:K]);
 
 # We minimize the gmm objective with the identity as the weighting matrix
 # subject to the constraints g = sum_j xi_j iv_j and market share equations
@@ -76,7 +76,7 @@ logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "l
 @addNLConstraint(
     logit, 
     constr[j=1:J], 
-    xi[j]==log(s[j])-log(s0[j])+alpha*p[j]-sum{beta[k]*x[j,k],k=1:K}
+    xi[j]==log(s[j])-log(s0[j])+alpha*p[j]-sum{beta_par[k]*x[j,k],k=1:K}
 );
 
 # Solve the model
@@ -85,13 +85,13 @@ status = solve(logit);
 # Print the results
 print(status)
 print("alpha = ", getValue(alpha))
-print("beta = ", getValue(beta[1:K]))
+print("beta_par = ", getValue(beta_par[1:K]))
 
 # Save results to use in the setup of BLP Model
 g_logit=getValue(g);
 xi_logit=getValue(xi);
 alpha_logit=getValue(alpha);
-beta_logit=getValue(beta);
+beta_par_logit=getValue(beta_par);
 
 
 ##################################
@@ -120,18 +120,18 @@ function eval_f(param)
 end
 
 function eval_grad_f(param, grad_f)
-  grad_f = 2*W*param[21:30]
+  grad_f[:] = 2*W*param[21:30]
 end
 
 #=
 g = [share, g]
 g = [1:528, 529:538]
-param = [alpha, beta,  piInc, piAge, sigma, g,     xi     ]
+param = [alpha, beta_par,  piInc, piAge, sigma, g,     xi     ]
 param = [1,     2:5,   6:10,  11:15, 16:20, 21:30, 31:558
 =#
 function eval_g(param, g)
   alpha = param[1];
-  beta = param[2:5];
+  beta_par = param[2:5];
   piInc = param[6:10];
   piAge = param[11:15];
   sigma = param[16:20];
@@ -140,12 +140,12 @@ function eval_g(param, g)
   for n = 1:N
     denom[n] = sum( exp( 
                 -(alpha + piInc[K+1]*inc[n] + piAge[K+1]*age[n] + sigma[K+1]*v[n,K+1])*p
-                + x[:,1:K]*(beta[1:K] + piInc[1:K]*inc[n] + piAge[1:K]*age[n] + Diagonal(sigma[1:K])*v'[1:K,n] )
+                + x[:,1:K]*(beta_par[1:K] + piInc[1:K]*inc[n] + piAge[1:K]*age[n] + Diagonal(sigma[1:K])*v'[1:K,n] )
                 + xi )
                 )                      
     tau[:,n] = exp(                           
                 -(alpha + piInc[K+1]*inc[n] + piAge[K+1]*age[n] + sigma[K+1]*v[n,K+1])*p
-                + x[:,1:K]*(beta[1:K] + piInc[1:K]*inc[n] + piAge[1:K]*age[n] + Diagonal(sigma[1:K])*v'[1:K,n] )
+                + x[:,1:K]*(beta_par[1:K] + piInc[1:K]*inc[n] + piAge[1:K]*age[n] + Diagonal(sigma[1:K])*v'[1:K,n] )
                 + xi )/denom[n]
   end
   g[1:528] =  s - sum(tau[:,n], 2) / N
@@ -153,18 +153,42 @@ function eval_g(param, g)
 end
 
 
+
+
+
 function eval_jac_g(param, mode, rows, cols, values)
 
+# Load data
+product = DataFrames.readtable("dataset_cleaned.csv", separator = ',', header = true);
+population = DataFrames.readtable("population_data.csv", separator = ',', header = true);
+
+# Define variables
+x = product[:,3:6];
+p = product[:,7];
+z = product[:,8:13];
+s0 = product[:,14];
+s = product[:,2];
+iv = [x z];
+inc = population[:,1];
+age = population[:,2];
+v = population[:,3:7];
+
+# Store dimensions
+K = size(x,2);
+L = K+size(z,2);
+J = size(x,1);
+N = size(v,1);
+M = size(v,2);
+
 # Variables
-  alpha = param[1];
-  beta = param[2:5];
-  piInc = param[6:10];
-  piAge = param[11:15];
-  sigma = param[16:20];
-  g = param[21:30];
-  xi = param[31:558];
+  alpha = param[1]
+  beta_par = param[2:5]
+  piInc = param[6:10]
+  piAge = param[11:15]
+  sigma = param[16:20]
+  xi = param[31:558]
   d_alpha = zeros(J,N);
-  d_beta = zeros(J,K,N);
+  d_beta_par = zeros(J,K,N);
   d_piInc = zeros(J,K+1,N);
   d_piAge = zeros(J,K+1,N);
   d_sigma = zeros(J,K+1,N);
@@ -174,13 +198,13 @@ function eval_jac_g(param, mode, rows, cols, values)
   for n = 1:N
     denom[n] = sum( exp( 
               -(alpha + piInc[K+1]*inc[n] + piAge[K+1]*age[n] + sigma[K+1]*v[n,K+1])*p
-              + x[:,1:K]*(beta[1:K] + piInc[1:K]*inc[n] + piAge[1:K]*age[n] + Diagonal(sigma[1:K])*v'[1:K,n] )
+              + x[:,1:K]*(beta_par[1:K] + piInc[1:K]*inc[n] + piAge[1:K]*age[n] + Diagonal(sigma[1:K])*v'[1:K,n] )
               + xi )
               ) 
                                           
     tau[:,n] = exp(                               
               -(alpha + piInc[K+1]*inc[n] + piAge[K+1]*age[n] + sigma[K+1]*v[n,K+1])*p
-              + x[:,1:K]*(beta[1:K] + piInc[1:K]*inc[n] + piAge[1:K]*age[n] + Diagonal(sigma[1:K])*v'[1:K,n] )
+              + x[:,1:K]*(beta_par[1:K] + piInc[1:K]*inc[n] + piAge[1:K]*age[n] + Diagonal(sigma[1:K])*v'[1:K,n] )
               + xi )/denom[n]
   end
 
@@ -192,7 +216,7 @@ function eval_jac_g(param, mode, rows, cols, values)
       d_piAge[j,K+1,N] = (p[j]*tau[j,n] - sum(Diagonal(p)*tau[:,n])*tau[j,n])*age[n]
       d_sigma[j,K+1,N] = (p[j]*tau[j,n] - sum(Diagonal(p)*tau[:,n])*tau[j,n])*v'[K+1,n]
       for k=1:K
-        d_beta[j,k,n] = ( x[j,k]*tau[j,n] - sum(Diagonal(x[:,k])*tau[:,n])*tau[j,n] )
+        d_beta_par[j,k,n] = ( x[j,k]*tau[j,n] - sum(Diagonal(x[:,k])*tau[:,n])*tau[j,n] )
         d_piInc[j,k,n] = ( x[j,k]*tau[j,n] - sum(Diagonal(x[:,k])*tau[:,n])*tau[j,n] )*inc[n]
         d_piAge[j,k,n] = ( x[j,k]*tau[j,n] - sum(Diagonal(x[:,k])*tau[:,n])*tau[j,n] )*age[n]
         d_sigma[j,k,n] = ( x[j,k]*tau[j,n] - sum(Diagonal(x[:,k])*tau[:,n])*tau[j,n] )*v'[k,n]
@@ -209,11 +233,11 @@ function eval_jac_g(param, mode, rows, cols, values)
 
   # Define derivative matrices
   D_alpha = (1/N)*sum(d_alpha, 2);
-  D_beta = (1/N)*sum(d_beta, 3);
+  D_beta_par = (1/N)*sum(d_beta_par, 3);
   D_piInc = (1/N)*sum(d_piInc, 3);
   D_piAge = (1/N)*sum(d_piAge, 3);
   D_sigma = (1/N)*sum(d_sigma, 3);
-  D_theta = [D_beta D_alpha D_piInc D_piAge D_sigma];
+  D_theta = [D_beta_par D_alpha D_piInc D_piAge D_sigma];
   D_xi = (1/N)*sum(d_xi, 3);
 
   # Now that we have derivatives, the rest is easy.
@@ -225,13 +249,19 @@ function eval_jac_g(param, mode, rows, cols, values)
   jac = convert(Array{Float64,2}, jac[1:size(jac,1), 1:size(jac,2)])
   (I, J, V) = findnz(jac);
 
-if mode == :Structure
-  rows = I; cols = J;
-else
-  values = V;
-end
+  if mode == :Structure
+    rows[:] = I; cols[:] = J;
+  else
+    values[:] = V;
+  end
+
 end
 
+
+rows = zeros(nele_jac)
+cols = zeros(nele_jac)
+values = zeros(nele_jac)
+eval_jac_g(ones(n), "Structure", rows, cols, values)
 
 #####################
 ##   Call Ipopt    ##
@@ -244,7 +274,6 @@ prob = createProblem(n, x_L, x_U, m, g_L, g_U, nele_jac, nele_hess,
 # Set warm start and additional options
 prob.x = zeros(n)
 addOption(prob, "hessian_approximation", "limited-memory")
-addOption(prob, "linear_solver", "ma57")
 
 # Solve
 status = solveProblem(prob)
