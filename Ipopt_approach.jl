@@ -22,7 +22,7 @@ Ipopt call
 using Ipopt
 using JuMP
 using DataFrames
-cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
+#cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
 
 
 #####################
@@ -34,15 +34,15 @@ product = DataFrames.readtable("dataset_cleaned.csv", separator = ',', header = 
 population = DataFrames.readtable("population_data.csv", separator = ',', header = true);
 
 # Define variables
-x = product[:,3:6];
-p = product[:,7];
-z = product[:,8:13];
-s0 = product[:,14];
-s = product[:,2];
+x = convert(Array, product[:,3:6]);
+p = convert(Array, product[:,7]);
+z = convert(Array, product[:,8:13]);
+s0 = convert(Array, product[:,14]);
+s = convert(Array, product[:,2]);
 iv = [x z];
-inc = population[:,1];
-age = population[:,2];
-v = population[:,3:7];
+inc = convert(Array, population[:,1]);
+age = convert(Array, population[:,2]);
+v = convert(Array, population[:,3:7]);
 
 # Store dimensions
 K = size(x,2);
@@ -153,40 +153,15 @@ function eval_g(param, g)
 end
 
 
-
-
-
 function eval_jac_g(param, mode, rows, cols, values)
 
-# Load data
-product = DataFrames.readtable("dataset_cleaned.csv", separator = ',', header = true);
-population = DataFrames.readtable("population_data.csv", separator = ',', header = true);
-
-# Define variables
-x = product[:,3:6];
-p = product[:,7];
-z = product[:,8:13];
-s0 = product[:,14];
-s = product[:,2];
-iv = [x z];
-inc = population[:,1];
-age = population[:,2];
-v = population[:,3:7];
-
-# Store dimensions
-K = size(x,2);
-L = K+size(z,2);
-J = size(x,1);
-N = size(v,1);
-M = size(v,2);
-
 # Variables
-  alpha = param[1]
-  beta_par = param[2:5]
-  piInc = param[6:10]
-  piAge = param[11:15]
-  sigma = param[16:20]
-  xi = param[31:558]
+  alpha = param[1];
+  beta_par = param[2:5];
+  piInc = param[6:10];
+  piAge = param[11:15];
+  sigma = param[16:20];
+  xi = param[31:558];
   d_alpha = zeros(J,N);
   d_beta_par = zeros(J,K,N);
   d_piInc = zeros(J,K+1,N);
@@ -247,21 +222,16 @@ M = size(v,2);
   I_g = eye(L)
   jac = [D_theta D_xi zero_1 ; zero_2 -iv' I_g]
   jac = convert(Array{Float64,2}, jac[1:size(jac,1), 1:size(jac,2)])
-  (I, J, V) = findnz(jac);
+  (Eye, Jay, Vee) = findnz(jac);
 
   if mode == :Structure
-    rows[:] = I; cols[:] = J;
+    rows[:] = Eye; cols[:] = Jay;
   else
-    values[:] = V;
+    values[:] = Vee;
   end
 
 end
 
-
-rows = zeros(nele_jac)
-cols = zeros(nele_jac)
-values = zeros(nele_jac)
-eval_jac_g(ones(n), "Structure", rows, cols, values)
 
 #####################
 ##   Call Ipopt    ##
