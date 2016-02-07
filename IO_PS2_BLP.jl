@@ -24,8 +24,8 @@ EnableNLPResolve()
 #####################
 
 # Load data
-product = DataFrames.readtable("dataset_cleaned.csv", separator = ',', header = true);
-population = DataFrames.readtable("population_data.csv", separator = ',', header = true);
+product = DataFrames.readtable("small_dataset_cleaned.csv", separator = ',', header = true);
+population = DataFrames.readtable("small_population_data.csv", separator = ',', header = true);
 
 # Define variables
 x = product[:,3:6];
@@ -78,8 +78,8 @@ status = solve(logit);
 
 # Print the results
 print(status)
-println("alpha = ", getValue(alpha))
-println("beta = ", getValue(beta[1:K]))
+print("alpha = ", getValue(alpha))
+print("beta = ", getValue(beta[1:K]))
 
 # Save results to use in the setup of BLP Model
 g_logit=getValue(g);
@@ -97,7 +97,7 @@ iv = convert(Array, iv)
 W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
 =#
 # Setup the BLP model
-BLP = Model(solver = IpoptSolver(tol = 1e-5, hessian_approximation="limited-memory", max_iter = 100, output_file = "BLP.txt"));
+BLP = Model(solver = IpoptSolver(tol = 1e-5, derivative_test="first_order", hessian_approximation="limited-memory", max_iter = 100, output_file = "BLP.txt"));
 
 # Defining variables - set initial values to estimates from the logit model
 @defVar(BLP, g[x=1:L], start=(g_logit[x]));
@@ -161,10 +161,10 @@ status = solve(BLP);
 
 # Print the results
 print(status)
-println("alpha = ", getValue(alpha))
-println("beta = ", getValue(beta[1:K]))
-println("piInc = ", getValue(piInc[1:K]))
-println("piAge = ", getValue(piAge[1:K]))
-println("sigma = ", getValue(sigma[1:K]))
+print("alpha = ", getValue(alpha))
+print("beta = ", getValue(beta[1:K]))
+print("piInc = ", getValue(piInc[1:K]))
+print("piAge = ", getValue(piAge[1:K]))
+print("sigma = ", getValue(sigma[1:K]))
 
 
