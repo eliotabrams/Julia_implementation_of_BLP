@@ -1,0 +1,92 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[english]{babel}
+\usepackage{mathrsfs,amssymb,amsmath,amsthm, enumerate}
+\usepackage{verbatim,graphicx,geometry}
+%\usetikzlibrary{arrows}
+\usepackage[utf8]{inputenc}
+
+\usepackage[round]{natbib}
+\bibliographystyle{plainnat}
+
+\makeatletter
+\def\@biblabel#1{\hspace*{-\labelsep}}
+\makeatother
+\geometry{left=1in,right=1
+in,top=1in,bottom=1in}
+\newdimen\dummy
+\dummy=\oddsidemargin
+\addtolength{\dummy}{72pt}
+\marginparwidth=.5\dummy
+\marginparsep=.1\dummy
+%\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\plim}{\overset{p}{\longrightarrow}}
+\newcommand{\dlim}{\overset{d}{\longrightarrow}}
+
+\begin{document}
+\title{Advanced Industrial Organization II \\ Problem Set 2}
+\author{Eliot Abrams \and Hyinmin Park \and Alexandre Sollaci}
+\date{\today}
+\maketitle
+
+\section*{Question 1}
+
+If the utility of consumer $i$ when buying product $j$ is given by
+
+\[ u_{i,j} = \alpha_i(w_i - p_j) + \mathbf{x}_j'\beta_i + \xi_j + \varepsilon_{i,j} \]
+while having the utility of the normalized good normalized to zero, then including a constant term -- the first column of $\mathbf{x}_j$ is composed of 1's for every $j$ -- then the term $\beta_i^{(1)}$ can be interpreted as the utility that consumer $i$ gets from consuming the ``inside good". For example, if we are estimating demand for cars and the ``outside good" is not purchasing a car at all, then $\beta_i^{(1)}$ will capture the utility that a consumer enjoys when buying a car, regardless of its characteristics. Note that $\beta_i^{(1)}$ may vary between individuals, since the value of a car for different people may depend on their own demographic characteristics (this is the approach we follow in our specification of the BLP below). 
+
+\section*{Question 2}
+
+Our estimates for the simple model for $\alpha$ and $\beta$ are
+\[
+\alpha = 1.8185 \quad \mbox{and}  \quad
+\beta = \left[\begin{array}{l} 0.9638 \\ 1.4510 \\ 1.7228 \\ 0.3709 \end{array}\right] \]
+
+Since we follow the MPEC approach, we readily have an estimate for the vector of structural errors, $\xi$, given as part of the output of the GMM problem. It is then straightforward to compute the optimal GMM matrix as
+
+\[ W = \frac{1}{J}\left[Z'D_{\xi}Z\right]^{-1} \]where $J$ is the number of products$\times$markets and 
+\[ D_{\xi} = \left(\begin{array}{cccc}
+\xi_1^2 & 0 & \ldots & 0 \\
+\vdots & \xi_2^2 & \ddots & \vdots \\
+0 & 0 & \ldots & \xi_J^2
+\end{array} \right) \]
+
+\subsection*{A brief note on the estimation}
+
+The program we wrote to estimate the logit model was written in Julia and takes advantage of the JuMP (Julia for Mathematical Programming) package and the Ipopt solver.
+
+We chose Julia because it is a ``simple enough" programming language (like Python or MATLAB) but that promises to be fast -- as fast as C or Fortran. Furthermore, JuMP saves us the work of having to provide derivatives to Ipopt when solving the GMM minimization problem, while still being able to quickly compute a solution.
+
+The combination o Julia and JuMP worked well in the simple logit model. However, the full BLP problem proved to be much more demanding, taking JuMP several days of computation while still not arriving at a solution. Thus, we had to revert to using Ipopt directly, which meant having to manually code the derivatives and feeding them to the solver.
+
+\section*{Question 3}
+
+Let $K$ be the number of columns in $\mathbf{x}$ (in this particular case, $K = 4$). We will estimate $1 + K + 3(K+1)$ parameters, since
+\begin{itemize}
+\item $\alpha$ is a $1\times 1$ vector -- or just a scalar;
+\item $\beta$ is a $K \times 1$ vector, the same dimension as $\mathbf{x}$;
+\item $\mathbf{\Pi}$ has two $(K+1) \times 1$ blocks: $\Pi_{inc}$ and $\Pi_{age}$, referring to income and age of each consumer. In the way we set up our model, the first $K$ entries of both $\Pi_{inc}$ and $\Pi_{age}$ will interact with product characteristics, $\mathbf{x}$, in the market-share equation, while the $K+1^{th}$ entry will interact with price, $\mathbf{p}$.
+\item $\sqrt{\Sigma}$ has $K\times 1$ parameters, since we assume that $\Sigma$ is a diagonal matrix. As before, in the way we set up our model, $\sigma_{1}, \ldots, \sigma_{K}$ will interact with characteristics while $\sigma_{K+1}$ will interact with prices in the market-share equation.
+\end{itemize}
+
+Having said that, we can define the market-share in the model by
+
+\[ s_j = \frac{1}{N}\sum_{n=1}^N \frac{\exp\left(\sum_{k=1}^K
+x_{jk}Y^x_{k,n} - Y^p_{n}p_j + \xi_j \right)}{ 1 + \sum_{j = 1}^J\exp\left(\sum_{k=1}^K x_{jk}Y^x_{k,n} - Y^p_{n}p_j + \xi_j \right)} \]
+where
+\[ Y^x_{k,n} = \beta^{(k)} + \Pi_{inc}^{(k)}inc_n + \Pi_{age}^{(k)}age_n + \sigma_k \nu_n^k\]
+and
+\[ Y^p_{n} = \alpha + \Pi_{inc}^{(K+1)}inc_n + \Pi_{age}^{(K+1)}age_n + \sigma_{K+1}\nu_n^{K+1}. \]
+
+
+
+
+
+
+
+
+\end{document}
