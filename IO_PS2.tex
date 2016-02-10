@@ -21,6 +21,37 @@ in,top=1in,bottom=1in}
 \marginparsep=.1\dummy
 %\renewcommand{\thefootnote}{\fnsymbol{footnote}}
 
+\usepackage[T1]{fontenc}
+\usepackage{beramono}
+\usepackage{listings}
+\usepackage[usenames,dvipsnames]{xcolor}
+
+%%
+%% Julia definition (c) 2014 Jubobs
+%%
+\lstdefinelanguage{Julia}%
+  {morekeywords={abstract,break,case,catch,const,continue,do,else,elseif,%
+      end,export,false,for,function,immutable,import,importall,if,in,%
+      macro,module,otherwise,quote,return,switch,true,try,type,typealias,%
+      using,while},%
+   sensitive=true,%
+  % alsoother={$},%
+   morecomment=[l]\#,%
+   morecomment=[n]{\#=}{=\#},%
+   morestring=[s]{"}{"},%
+   morestring=[m]{'}{'},%
+}[keywords,comments,strings]%
+
+\lstset{%
+    language         = Julia,
+    basicstyle       = \ttfamily,
+    keywordstyle     = \bfseries\color{blue},
+    stringstyle      = \color{magenta},
+    commentstyle     = \color{ForestGreen},
+    showstringspaces = false,
+}
+
+
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\Var}{\mathrm{Var}}
 \newcommand{\plim}{\overset{p}{\longrightarrow}}
@@ -43,25 +74,33 @@ while having the utility of the normalized good normalized to zero, then includi
 
 Our estimates for the simple model for $\alpha$ and $\beta$ are
 \[
-\alpha = 1.8185 \quad \mbox{and}  \quad
-\beta = \left[\begin{array}{l} 0.9638 \\ 1.4510 \\ 1.7228 \\ 0.3709 \end{array}\right] \]
+\hat\alpha = 1.8185 \quad \mbox{and}  \quad
+\hat\beta = \left[\begin{array}{l} 0.9638 \\ 1.4510 \\ 1.7228 \\ 0.3709 \end{array}\right] \]
 
 Since we follow the MPEC approach, we readily have an estimate for the vector of structural errors, $\xi$, given as part of the output of the GMM problem. It is then straightforward to compute the optimal GMM matrix as
 
-\[ W = \frac{1}{J}\left[Z'D_{\xi}Z\right]^{-1} \]where $J$ is the number of products$\times$markets and 
-\[ D_{\xi} = \left(\begin{array}{cccc}
-\xi_1^2 & 0 & \ldots & 0 \\
-\vdots & \xi_2^2 & \ddots & \vdots \\
-0 & 0 & \ldots & \xi_J^2
+\[\hat W = \frac{1}{J}\left[Z'\hat{D}_{\xi}Z\right]^{-1} \]where $J$ is the number of products$\times$markets and 
+\[ \hat{D}_{\xi} = \left(\begin{array}{cccc}
+\hat\xi_1^2 & 0 & \ldots & 0 \\
+\vdots & \hat\xi_2^2 & \ddots & \vdots \\
+0 & 0 & \ldots & \hat\xi_J^2
 \end{array} \right) \]
 
-\subsection*{A brief note on the estimation}
+\subsection*{A brief note on the estimation procedure}
 
 The program we wrote to estimate the logit model was written in Julia and takes advantage of the JuMP (Julia for Mathematical Programming) package and the Ipopt solver.
 
-We chose Julia because it is a ``simple enough" programming language (like Python or MATLAB) but that promises to be fast -- as fast as C or Fortran. Furthermore, JuMP saves us the work of having to provide derivatives to Ipopt when solving the GMM minimization problem, while still being able to quickly compute a solution.
+We chose Julia because it is a compiled language -- and thus faster -- but which retains some of the flexibility of interpreted languages. Furthermore, JuMP saves us the work of having to provide derivatives to Ipopt when solving the GMM minimization problem, while still being able to quickly compute a solution.
 
-The combination o Julia and JuMP worked well in the simple logit model. However, the full BLP problem proved to be much more demanding, taking JuMP several days of computation while still not arriving at a solution. Thus, we had to revert to using Ipopt directly, which meant having to manually code the derivatives and feeding them to the solver.
+The combination of Julia and JuMP worked well in the simple logit model. However, the full BLP problem proved to be much more demanding, taking the ``regular" version of JuMP several days of computation while still not arriving at a solution. While trying to fix the problem we were fortunate enough to be able to talk to the developers of JuMP, who informed us that the code for the package had recently been rewritten and that we should try to use its development version to solve the model. This is simply done by running the following commands:
+\begin{lstlisting}
+Pkg.checkout("JuMP")
+Pkg.update()
+\end{lstlisting}
+When this also failed (Ipopt reported having converged to a point of local infeasibility), we switched solver from Ipopt to KNITRO. This as also a suggestion of the developers of JuMP, arguing that KNITRO is a better non-linear solver. The results we present here are based on this last approach (Julia + JuMP + KNITRO); we haven't got the solution to converge yet, but, on the other hand, the program has not returned any errors and the parameters seem to evolve nicely with each iteration. 
+
+Separately, we have also tried working directly with Ipopt (without using JuMP) to solve the BLP model. This separate approach involved manually coding the first derivatives of the GMM minimization problem suggested by MPEC to the BLP. Unfortunately, we could not get it to work, as Ipopt kept returning a segmentation error.
+
 
 \section*{Question 3}
 
@@ -69,7 +108,7 @@ Let $K$ be the number of columns in $\mathbf{x}$ (in this particular case, $K = 
 \begin{itemize}
 \item $\alpha$ is a $1\times 1$ vector -- or just a scalar;
 \item $\beta$ is a $K \times 1$ vector, the same dimension as $\mathbf{x}$;
-\item $\mathbf{\Pi}$ has two $(K+1) \times 1$ blocks: $\Pi_{inc}$ and $\Pi_{age}$, referring to income and age of each consumer. In the way we set up our model, the first $K$ entries of both $\Pi_{inc}$ and $\Pi_{age}$ will interact with product characteristics, $\mathbf{x}$, in the market-share equation, while the $K+1^{th}$ entry will interact with price, $\mathbf{p}$.
+\item $\mathbf{\Pi}$ has two $(K+1) \times 1$ blocks: $\Pi_{\mathrm{inc}}$ and $\Pi_{\mathrm{age}}$, referring to income and age of each consumer. In the way we set up our model, the first $K$ entries of both $\Pi_{\mathrm{inc}}$ and $\Pi_{\mathrm{age}}$ will interact with product characteristics, $\mathbf{x}$, in the market-share equation, while the $K+1^{th}$ entry will interact with price, $\mathbf{p}$.
 \item $\sqrt{\Sigma}$ has $K\times 1$ parameters, since we assume that $\Sigma$ is a diagonal matrix. As before, in the way we set up our model, $\sigma_{1}, \ldots, \sigma_{K}$ will interact with characteristics while $\sigma_{K+1}$ will interact with prices in the market-share equation.
 \end{itemize}
 
@@ -78,11 +117,199 @@ Having said that, we can define the market-share in the model by
 \[ s_j = \frac{1}{N}\sum_{n=1}^N \frac{\exp\left(\sum_{k=1}^K
 x_{jk}Y^x_{k,n} - Y^p_{n}p_j + \xi_j \right)}{ 1 + \sum_{j = 1}^J\exp\left(\sum_{k=1}^K x_{jk}Y^x_{k,n} - Y^p_{n}p_j + \xi_j \right)} \]
 where
-\[ Y^x_{k,n} = \beta^{(k)} + \Pi_{inc}^{(k)}inc_n + \Pi_{age}^{(k)}age_n + \sigma_k \nu_n^k\]
+\[ Y^x_{k,n} = \beta^{(k)} + \Pi_{\mathrm{inc}}^{(k)}\mathrm{inc}_n + \Pi_{\mathrm{age}}^{(k)}\mathrm{age}_n + \sigma_k \nu_n^k\]
 and
-\[ Y^p_{n} = \alpha + \Pi_{inc}^{(K+1)}inc_n + \Pi_{age}^{(K+1)}age_n + \sigma_{K+1}\nu_n^{K+1}. \]
+\[ Y^p_{n} = \alpha + \Pi_{\mathrm{inc}}^{(K+1)}\mathrm{inc}_n + \Pi_{\mathrm{age}}^{(K+1)}\mathrm{age}_n + \sigma_{K+1}\nu_n^{K+1}. \]
+
+\section*{Question 4}
+
+As pointed out in the discussion above, out code has not converged to a solution for the BLP model. The estimates we return here are our best guess after letting the program run for XXXX iterations. Those values are
+\[
+\hat\alpha = -0.8699, \quad
+\hat\beta = \left[ \begin{array}{r} 
+0.9638 \\ 2.6917 \\ 1.0280 \\ 1.3045
+\end{array}\right],
+\quad
+\hat\Pi_{\mathrm{inc}} = \left[ \begin{array}{r}
+1.3283e^{-7} \\ 0.2348 \\ 0.7485 \\ -0.3961 \\ 0.3898
+\end{array}\right],
+\quad
+\hat\Pi_{\mathrm{age}} = \left[ \begin{array}{r}
+3.9302e^{-7} \\ 0.0352 \\ -0.0503 \\ 0.0090 \\ 0.1638
+\end{array}\right],
+\quad
+\hat\sigma = \left[ \begin{array}{r}
+-4.0364e^{-12} \\ -0.9308 \\ -0.1276 \\ -1.7015 \\ -1.5043
+\end{array}\right].
+\]
+
+Comparing the full BLP estimates with the simple logit estimates, we can see that ....
+
+\clearpage
+
+\appendix
+
+\section*{Appendix: code}
+\small{
+\begin{lstlisting}
+# 2016 Winter Advanced IO PS2 
+# Hyunmin Park, Eliot Abrams, Alexandre Sollaci
+
+#=
+julia_implementation_of_blp.jl
+
+Julia code for implementing a BLP model using MPEC to solve for parameters
+=#
+
+#####################
+##      Setup      ##
+#####################
+
+using Ipopt
+using KNITRO
+using JuMP
+using DataFrames
+EnableNLPResolve()
 
 
+#####################
+##      Data       ##
+#####################
+
+# Load data
+product = DataFrames.readtable("dataset_cleaned.csv", separator = ',',
+ header = true);
+population = DataFrames.readtable("population_data.csv", separator = ',',
+ header = true);
+
+# Define variables
+x = product[:,3:6];
+p = product[:,7];
+z = product[:,8:13];
+s0 = product[:,14];
+s = product[:,2];
+iv = [x z];
+inc = population[:,1];
+age = population[:,2];
+v = population[:,3:7];
+
+# Store dimensions
+K = size(x,2);
+L = K+size(z,2);
+J = size(x,1);
+N = size(v,1);
+M = size(v,2);
+
+
+##########################
+##  Simple Logit Model  ##
+##########################
+
+# Setup the simple logit model
+logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, 
+output_file = "logit.txt"));
+
+# Define variables
+@defVar(logit, g[1:L]);
+@defVar(logit, xi[1:J]);
+@defVar(logit, alpha);
+@defVar(logit, beta[1:K]);
+
+# We minimize the gmm objective with the identity as the weighting matrix
+# subject to the constraints g = sum_j xi_j iv_j and market share equations
+@setObjective(logit, Min, sum{g[l]^2,l=1:L});
+@addConstraint(
+    logit, 
+    constr[l=1:L], 
+    g[l]==sum{xi[j]*iv[j,l], j=1:J}
+);
+@addNLConstraint(
+    logit, 
+    constr[j=1:J], 
+    xi[j]==log(s[j])-log(s0[j])+alpha*p[j]-sum{beta[k]*x[j,k],k=1:K}
+);
+
+# Solve the model
+status = solve(logit);
+
+# Print the results
+println("alpha = ", getValue(alpha))
+println("beta = ", getValue(beta[1:K]))
+
+# Save results to use in the setup of BLP Model
+g_logit=getValue(g);
+xi_logit=getValue(xi);
+alpha_logit=getValue(alpha);
+beta_logit=getValue(beta);
+
+
+##########################
+##      BLP Model       ##
+##########################
+
+# Calculate the optimal weighting matrix
+iv = convert(Array, iv)
+W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
+
+# Setup the BLP model
+BLP = Model(solver = KnitroSolver(KTR_PARAM_HESSOPT=6, 
+KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=100));
+
+# Defining variables - set initial values to estimates from the logit model
+@defVar(BLP, g[x=1:L], start=(g_logit[x]));
+@defVar(BLP, xi[x=1:J], start=(xi_logit[x]));
+@defVar(BLP, alpha, start=alpha_logit);
+@defVar(BLP, beta[x=1:K], start=beta_logit[x]);
+
+# Defining variables - heterogeneity parameters
+@defVar(BLP, piInc[1:K+1]);
+@defVar(BLP, piAge[1:K+1]);
+@defVar(BLP, sigma[1:K+1]);
+
+# We minimize the gmm objective - using the optimal weighting matrix! 
+# subject to g = sum_j xi_j iv_j and market share equations - 
+# Note that where we assign each shock could have minor effect on estimation results
+# shock 1 : taste shock to x1
+# shock 2 : taste shock to x2
+# shock 3 : taste shock to x3
+# shock 4 : taste shock to x4
+# shock 5: taste shock to price
+@setObjective(BLP, Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
+@addConstraint(
+    BLP, 
+    constr[l=1:L], 
+    g[l]==sum{xi[j]*iv[j,l],j=1:J}
+);
+@defNLExpr(
+    BLP,
+    denom[n=1:N],
+    sum{
+        exp(beta[1]
+            -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]
+            +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],
+             k=1:K} +xi[h] ) , h=1:J}
+);
+@addNLConstraint(
+    BLP,
+    constr[j=1:J], 
+    s[j]==(1/N)*
+        sum{
+            exp(beta[1]
+                -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[j]
+                 +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[j,k],
+                k=1:K} +xi[j])/denom[n] ,n=1:N}
+);
+
+# Solve the model
+status = solve(BLP);
+
+# Print the results
+println("alpha = ", getValue(alpha))
+println("beta = ", getValue(beta[1:K]))
+println("piInc = ", getValue(piInc[1:K+1]))
+println("piAge = ", getValue(piAge[1:K+1]))
+println("sigma = ", getValue(sigma[1:K+1]))
+\end{lstlisting}}
 
 
 
