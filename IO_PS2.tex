@@ -63,13 +63,13 @@ in,top=1in,bottom=1in}
 \date{\today}
 \maketitle
 
-\section*{Question 1}
+\section*{2.1.1}
 Say the utility of consumer $i$ when buying product $j$ is given by
-\[ u_{i,j} = \alpha_i(w_i - p_j) + \mathbf{x}_j'\beta_i + \xi_j + \varepsilon_{i,j} \]
-and let the utility of the outside good be normalized to zero. If we include a constant here, then the $\beta_i$ on the constant can be interpreted as the base utility that consumer $i$ gets from consuming an ``inside good" as opposed to the outside good. So say $\mathbf{x}_j^{[1]} = 1$ and we are estimating demand for cars and the outside good is not purchasing a car at all. Then $\beta_i^{[1]}$ will capture the utility that a consumer gets when buying a car, regardless of its characteristics. Note that $\beta_i^{[1]}$ may vary between individuals, since the value of a car a person probably depends on their own demographic characteristics (this is the approach we follow in our specification of the BLP below). 
+\[ u_{i,j} = \alpha_i(w_i - p_j) + \mathbf{x}_j'\mathbf{\beta_i} + \xi_j + \varepsilon_{i,j} \]
+and let the utility of the outside good be normalized to zero. If we include a constant here, then the $\mathbf{\beta_i}$ on the constant can be interpreted as the base utility that consumer $i$ gets from consuming an ``inside good" as opposed to the outside good. So say $\mathbf{x}_j^{[1]} = 1$ and we are estimating demand for cars and the outside good is not purchasing a car at all. Then $\beta_i^{[1]}$ will capture the utility that a consumer gets when buying a car, regardless of its characteristics. Note that $\beta_i^{[1]}$ may vary between individuals, since the value of a car to a person probably depends on their own demographic characteristics (this is the approach we follow in our specification of the BLP below). 
 
-\section*{Question 2}
-We estimate the simple logit model via minimization in the MPEC formulation. Our estimates for $\alpha$ and $\beta$ are:
+\section*{2.1.2}
+We estimate the simple logit model via minimization in the MPEC formulation including a constant term. Our estimates for $\alpha$ and $\beta$ are:
 \[
 \hat\alpha = 1.8185 \quad \mbox{and}  \quad
 \hat\beta = \left[\begin{array}{l} 0.9638 \\ 1.4510 \\ 1.7228 \\ 0.3709 \end{array}\right] \]
@@ -86,7 +86,7 @@ Since we follow the MPEC approach, we also have estimates for the vector of stru
 \end{array} \right) \]
 
 
-\section*{Question 3}
+\section*{2.1.3}
 Let $K$ be the number of columns in $\mathbf{x}$ (in this particular case, $K = 4$). There are then $1 + K + 3(K+1)$ parameters, since
 \begin{itemize}
 \item $\alpha$ is a scalar
@@ -104,8 +104,8 @@ where
 and
 \[ Y^p_{n} = \alpha + \Pi_{\mathrm{inc}}^{(K+1)}\mathrm{inc}_n + \Pi_{\mathrm{age}}^{(K+1)}\mathrm{age}_n + \sigma_{K+1}\nu_n^{K+1}. \]
 
-\section*{Question 4}
-As described in the section below, the solver does not converge for our current BLP implementation. The estimates we return here are KNITRO's best guess for the parameters after running for 30 iterations. Note that KNITRO does not throw up any errors or warnings and there is limited improvement in the objective after about 10 iterations. With that disclaimer, our estimates are:
+\section*{2.1.4}
+We estimate the full model as described in the section below. We fix the optimal weighting matrix to that calculated from the simple logit model and use the estimates of the simple logit model as the starting values. As also described in the section below, the solver, KNITRO, does not converge for our current BLP implementation. The estimates we present here are KNITRO's best guess for the parameters after running for 30 iterations. Note that KNITRO does not throw up any errors or warnings and there is limited improvement in the objective after about 10 iterations. With that disclaimer, our estimates are:
 \[
 \hat\alpha = -0.8699, \quad
 \hat\beta = \left[ \begin{array}{r} 
@@ -128,29 +128,25 @@ $\hat\beta$ is ordered such that the first element refers to the coefficient on 
 -4.0364e^{-12} \\ -0.9308 \\ -0.1276 \\ -1.7015 \\ -1.5043
 \end{array}\right].
 \]
-Where the estimates above are ordered such that the first element contains the random coefficient that impact the constant, the second though fourth elements contain the coefficients that impact $x_1$, $x_2$ and $x_3$, and the fifth element contains the coefficient that impacts the price.
+where the estimates above are ordered such that the first element contains the random coefficient that impact the constant, the second though fourth elements contain the coefficients that impact $x_1$, $x_2$ and $x_3$, and the fifth element contains the coefficient that impacts the price.
 
-Comparing the full BLP estimates with the simple logit estimates, we can see that $\hat\beta$ is similar in both approaches. This suggests that, despite the computational effort that computing the full BLP model engenders, there might not be a huge gain as far the value of estimates go. From $\hat\Pi_{\mathrm{inc}}$, $\hat\Pi_{\mathrm{age}}$ and $\hat\sigma$ we can also conclude that the value consuming an inside good does not change too much between people with different demographic characteristics. 
+Comparing the full BLP estimates with the simple logit estimates, we can see that $\hat\beta$ is similar in both approaches. This suggests that, despite the computational effort that computing the full BLP model involves, there might not be huge gains as far as improving the value of the estimates goes. From $\hat\Pi_{\mathrm{inc}}$, $\hat\Pi_{\mathrm{age}}$ and $\hat\sigma$, we can also conclude that the value of consuming an ``inside good'' does not change too much between people with different demographic characteristics. 
 
-Finally, the BLP estimation returns a negative value for $\hat\alpha$. This makes little economic sense; it means that a high price is a desirable feature of a product, even when controlling for the product's characteristics (so we can rule out situations in which a high price could be perceived as a signal for high (unobservable) quality, for example). In particular, we would get positive own-price elasticities and a positively sloped demand function.
+We note that the BLP estimation returns a negative value for $\hat\alpha$. This makes little economic sense; it means that a high price is a desirable feature of a product, even when controlling for the product's characteristics (so we can rule out situations in which a high price could be perceived as a signal for high (unobservable) quality, for example). In particular, we would get positive own-price elasticities and a positively sloped demand function. This fact -- that $\hat\alpha$ is negative -- does suggest that our estimate is wrong, either because of some issue in the estimation procedure or because we forced the solver to stop after 30 iterations. 
 
-This fact -- that $\hat\alpha$ is negative -- is a strong suggestion that our estimate is wrong, either because of some issue in the estimation procedure or because we forced the solver to stop after 30 iterations. Unfortunately, due to time constraints, we could not pursue alternative strategies before the due date of this problem set. A potential ``bright side" of our recent endeavor is that we were able to get some results for the BLP estimates without having to manually code derivatives and feed them to the solver. Perhaps with some more work we could find ``better" results while still pursuing that approach.
-
-
+Unfortunately, due to time constraints, we could not pursue alternative implementations, such as re-doing all our code in Matlab, before the due date of this problem set. A huge ``bright side" of our recent endeavor is that our failure is currently being used to improve the JuMP package and auto-differentiation routines in Julia. Our model will be used to test future versions of JuMP and will be linked to as a coding example for non-linear models from JuMP's website.
 
 \subsection*{A brief note on the estimation procedure}
-The program we wrote to estimate the simple logit model was written in Julia and uses the JuMP (Julia for Mathematical Programming) package and the Ipopt solver.
-
-We chose Julia to exploit its speed advantage as a compiled language and to gain experience programming in a new language. Further, JuMP facilitates auto-differentiation of the gradient and the constraints--theoretically alleviating the need for the user to painstakingly code the exact Jacobian and Hessians.
+The program we wrote to estimate the simple logit model was written in Julia and uses the JuMP (Julia for Mathematical Programming) package and the Ipopt solver. We chose Julia to exploit its speed advantage as a compiled language and to gain experience programming in a new language. Further, JuMP facilitates auto-differentiation of the gradient and the constraints--theoretically alleviating the need for the user to painstakingly code the exact Jacobian and Hessians.
 
 The combination of Julia, JuMP, and Ipopt worked well to solve the simple logit model--performing the auto-differentiation and optimization in under 4 seconds.
 
-However, unsurprisingly, the full BLP problem proved to be much more demanding on the auto-differentiation routines. The latest release version of JuMP (v 0.11.3) proved unable to build the internal model for input into the solver. We wrote to the developers of JuMP, who informed us that the code for the package had recently been rewritten and that we should try the development version. To do so yourself, run the following commands from Julia:
+However, unsurprisingly, the full BLP problem proved to be much more demanding on the auto-differentiation routines. The latest release version of JuMP (v0.11.3) proved unable to build the internal model for input into the solver. We wrote to the developers of JuMP, who informed us that the code for the package had recently been rewritten and that we should try the development version. To do so yourself, run the following commands from Julia:
 \begin{lstlisting}
 Pkg.checkout("JuMP")
 Pkg.update()
 \end{lstlisting}
-At the same time, we also switched to using the KNITRO solver and disabled the auto-differentiation of the Hessian (to try to gain time) by slightly changing the source code of JuMP\footnote{This is easily done by deleting the text ":Hess" in line 341 in the source code at JuMP/src/nlp.jl.}. The results we present for question 4 are based on this last approach (Julia + JuMP development version + KNITRO); the optimization does not converge yet, but, on the other hand, neither JuMP nor KNITRO are returning any errors or warnings and the parameter values seem to evolve nicely with each iteration. 
+At the same time, we also switched to using the KNITRO solver and disabled the auto-differentiation of the Hessian (to speed up the calculations and out of concern that the AD was introducing errors) by slightly changing the source code of JuMP\footnote{This is easily done by deleting the text ":Hess" in line 341 in the source code at JuMP/src/nlp.jl.}. The results we present for question 4 are based on this last approach (Julia + JuMP development version + KNITRO). The optimization does not converge yet, but, on the other hand, neither JuMP nor KNITRO are returning any errors or warnings and the parameter values seem to evolve nicely with each iteration. 
 
 Separately, we also tried to directly submit the BLP model to the Ipopt solver (without using JuMP to build the internal model). This approach involved manually coding the exact Jacobian of the constraints. Unfortunately, this approach has not worked for us. Ipopt returns a  segmentation error upon trying to call the Jacobian.
 
@@ -162,7 +158,6 @@ Separately, we also tried to directly submit the BLP model to the Ipopt solver (
 \section*{Coding Appendix}
 \scriptsize	{
 \begin{lstlisting}
-
 #####################
 ##      Setup      ##
 #####################
@@ -179,10 +174,8 @@ EnableNLPResolve()
 #####################
 
 # Load data
-product = DataFrames.readtable("dataset_cleaned.csv", separator = ',',
- header = true);
-population = DataFrames.readtable("population_data.csv", separator = ',',
- header = true);
+product = DataFrames.readtable("dataset_cleaned.csv", separator = ',', header = true);
+population = DataFrames.readtable("population_data.csv", separator = ',', header = true);
 
 # Define variables
 x = product[:,3:6];
@@ -208,8 +201,7 @@ M = size(v,2);
 ##########################
 
 # Setup the simple logit model
-logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, 
-output_file = "logit.txt"));
+logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "logit.txt"));
 
 # Define variables
 @defVar(logit, g[1:L]);
@@ -250,12 +242,11 @@ beta_logit=getValue(beta);
 ##########################
 
 # Calculate the optimal weighting matrix
-iv = convert(Array, iv)
+iv = convert(Array, iv);
 W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
 
 # Setup the BLP model
-BLP = Model(solver = KnitroSolver(KTR_PARAM_HESSOPT=6, 
-KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=100));
+BLP = Model(solver = KnitroSolver(KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=30));
 
 # Defining variables - set initial values to estimates from the logit model
 @defVar(BLP, g[x=1:L], start=(g_logit[x]));
@@ -268,30 +259,38 @@ KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=100));
 @defVar(BLP, piAge[1:K+1]);
 @defVar(BLP, sigma[1:K+1]);
 
-# We minimize the gmm objective - using the optimal weighting matrix! 
+# We minimize the gmm objective - using the optimal weighting matrix
 # subject to g = sum_j xi_j iv_j and market share equations - 
-@setObjective(BLP, Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
+# Note that where we assign each shock could have minor effect on estimation results
+# shock 1 : taste shock to constant
+# shock 2 : taste shock to x1
+# shock 3 : taste shock to x2
+# shock 4 : taste shock to x3
+# shock 5 : taste shock to price
+@setObjective(BLP,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
 @addConstraint(
     BLP, 
     constr[l=1:L], 
-    g[l]==sum{xi[j]*iv[j,l],j=1:J}
+    g[l] == sum{xi[j]*iv[j,l],j=1:J}
+);
+
+# Trick to increase the sparsity and aid AD
+@defVar(BLP, summand[1:N,1:J])
+@addConstraint(BLP,
+              summand_constr[n=1:N,h=1:J],
+              summand[n,h] == -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]
+              +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],k=1:K}
+              +xi[h]
 );
 @defNLExpr(
     BLP,
     denom[n=1:N],
-    sum{
-        exp(-(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]
-            +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],
-             k=1:K} +xi[h] ) , h=1:J}
+    sum{exp(summand[n,h]), h=1:J}
 );
 @addNLConstraint(
     BLP,
     constr[j=1:J], 
-    s[j]==(1/N)*
-        sum{
-            exp( -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[j]
-                 +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[j,k],
-                k=1:K} +xi[j])/denom[n] ,n=1:N}
+    s[j]==(1/N)*sum{exp(summand[n,j])/denom[n],n=1:N}
 );
 
 # Solve the model
@@ -303,6 +302,8 @@ println("beta = ", getValue(beta[1:K]))
 println("piInc = ", getValue(piInc[1:K+1]))
 println("piAge = ", getValue(piAge[1:K+1]))
 println("sigma = ", getValue(sigma[1:K+1]))
+
+
 \end{lstlisting}}
 
 

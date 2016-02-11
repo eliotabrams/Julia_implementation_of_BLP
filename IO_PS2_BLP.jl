@@ -93,7 +93,7 @@ iv = convert(Array, iv);
 W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
 
 # Setup the BLP model
-BLP = Model(solver = KnitroSolver(KTR_PARAM_HESSOPT=6, KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=30));
+BLP = Model(solver = KnitroSolver(KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=30));
 
 # Defining variables - set initial values to estimates from the logit model
 @defVar(BLP, g[x=1:L], start=(g_logit[x]));
@@ -109,11 +109,11 @@ BLP = Model(solver = KnitroSolver(KTR_PARAM_HESSOPT=6, KTR_PARAM_OUTMODE=2, KTR_
 # We minimize the gmm objective - using the optimal weighting matrix
 # subject to g = sum_j xi_j iv_j and market share equations - 
 # Note that where we assign each shock could have minor effect on estimation results
-# shock 1 : taste shock to price
+# shock 1 : taste shock to constant
 # shock 2 : taste shock to x1
 # shock 3 : taste shock to x2
 # shock 4 : taste shock to x3
-# shock 5 : taste shock to constant
+# shock 5 : taste shock to price
 @setObjective(BLP,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
 @addConstraint(
     BLP, 
