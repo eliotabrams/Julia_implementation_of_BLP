@@ -1,8 +1,6 @@
-# 2016 Winter Advanced IO PS2 
-# Hyunmin Park, Eliot Abrams, Alexandre Sollaci
-
 #=
-julia_implementation_of_blp.jl
+2016 Winter Advanced IO PS2 
+Hyunmin Park, Eliot Abrams, Alexandre Sollaci
 
 Julia code for implementing a BLP model using MPEC to solve for parameters
 =#
@@ -11,21 +9,20 @@ Julia code for implementing a BLP model using MPEC to solve for parameters
 ##      Setup      ##
 #####################
 
-#Pkg.add("Ipopt")
-#Pkg.add("JuMP")
 using Ipopt
+using KNITRO
 using JuMP
 using DataFrames
-#cd("/Users/eliotabrams/Desktop/Advanced\ Industrial\ Organization\ 2/Julia_implementation_of_BLP")
 EnableNLPResolve()
+
 
 #####################
 ##      Data       ##
 #####################
 
 # Load data
-product = DataFrames.readtable("small_dataset_cleaned.csv", separator = ',', header = true);
-population = DataFrames.readtable("small_population_data.csv", separator = ',', header = true);
+product = DataFrames.readtable("dataset_cleaned.csv", separator = ',', header = true);
+population = DataFrames.readtable("population_data.csv", separator = ',', header = true);
 
 # Define variables
 x = product[:,3:6];
@@ -77,9 +74,8 @@ logit = Model(solver = IpoptSolver(tol = 1e-8, max_iter = 1000, output_file = "l
 status = solve(logit);
 
 # Print the results
-print(status)
-print("alpha = ", getValue(alpha))
-print("beta = ", getValue(beta[1:K]))
+println("alpha = ", getValue(alpha))
+println("beta = ", getValue(beta[1:K]))
 
 # Save results to use in the setup of BLP Model
 g_logit=getValue(g);
@@ -91,13 +87,13 @@ beta_logit=getValue(beta);
 ##########################
 ##      BLP Model       ##
 ##########################
-#=
+
 # Calculate the optimal weighting matrix
-iv = convert(Array, iv)
+iv = convert(Array, iv);
 W = inv((1/J)*iv'*Diagonal(diag(xi_logit*xi_logit'))*iv);
-=#
+
 # Setup the BLP model
-BLP = Model(solver = IpoptSolver(tol = 1e-5, derivative_test="first_order", hessian_approximation="limited-memory", max_iter = 100, output_file = "BLP.txt"));
+BLP = Model(solver = KnitroSolver(KTR_PARAM_HESSOPT=6, KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=30));
 
 # Defining variables - set initial values to estimates from the logit model
 @defVar(BLP, g[x=1:L], start=(g_logit[x]));
@@ -106,65 +102,53 @@ BLP = Model(solver = IpoptSolver(tol = 1e-5, derivative_test="first_order", hess
 @defVar(BLP, beta[x=1:K], start=beta_logit[x]);
 
 # Defining variables - heterogeneity parameters
-@defVar(BLP, piInc[1:K]);
-@defVar(BLP, piAge[1:K]);
-@defVar(BLP, sigma[1:K]);
+@defVar(BLP, piInc[1:K+1]);
+@defVar(BLP, piAge[1:K+1]);
+@defVar(BLP, sigma[1:K+1]);
 
-# We minimize the gmm objective - using the optimal weighting matrix! 
+# We minimize the gmm objective - using the optimal weighting matrix
 # subject to g = sum_j xi_j iv_j and market share equations - 
 # Note that where we assign each shock could have minor effect on estimation results
 # shock 1 : taste shock to price
 # shock 2 : taste shock to x1
 # shock 3 : taste shock to x2
 # shock 4 : taste shock to x3
-# @setObjective(BLP,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
-@setObjective(BLP, Min, sum{g[l]^2,l=1:L});
+# shock 5 : taste shock to constant
+@setObjective(BLP,Min,sum{sum{W[i,j]*g[i]*g[j],i=1:L},j=1:L});
 @addConstraint(
     BLP, 
     constr[l=1:L], 
-    g[l]==sum{xi[j]*iv[j,l],j=1:J}
+    g[l] == sum{xi[j]*iv[j,l],j=1:J}
+);
+
+# Trick to increase the sparsity and aid AD
+@defVar(BLP, summand[1:N,1:J])
+@addConstraint(BLP,
+              summand_constr[n=1:N,h=1:J],
+              summand[n,h] == -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]
+              +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],k=1:K}
+              +xi[h]
 );
 @defNLExpr(
     BLP,
     denom[n=1:N],
-    sum{
-        exp(beta[1]
-            -(alpha+piInc[1]*inc[n]+piAge[1]*age[n]+sigma[1]*v[n,1])*p[h]
-            +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],k=2:K}
-            +xi[h]
-            )
-    , h=1:J}
+    sum{exp(summand[n,h]), h=1:J}
 );
 @addNLConstraint(
     BLP,
     constr[j=1:J], 
-    s[j]==(1/N)*
-        sum{
-            exp(beta[1]
-                -(alpha+piInc[1]*inc[n]+piAge[1]*age[n]+sigma[1]*v[n,1])*p[j]
-                +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[j,k],k=2:K}
-                +xi[j]
-            )/denom[n]
-       ,n=1:N}
+    s[j]==(1/N)*sum{exp(summand[n,j])/denom[n],n=1:N}
 );
 
 # Solve the model
-#=
-using ForwardDiff
-testfunction(x) = (exp(x[2]-(x[1]+x[3]*3+x[4]*4+x[5]*5+(x[6]+x[7]*7+x[8]*9+x[9]*10)*20+x[10])) / exp(x[2]-(x[1]+x[3]*3+x[4]*4+x[5]*5)))
-testfunction_grad = ForwardDiff.gradient(testfunction);
-testfunction_grad([10.0,.2,.3,.4,.5,.6,.7,.8,.9,.1])
-sum(f, itr)
-=#
-
 status = solve(BLP);
 
 # Print the results
-print(status)
-print("alpha = ", getValue(alpha))
-print("beta = ", getValue(beta[1:K]))
-print("piInc = ", getValue(piInc[1:K]))
-print("piAge = ", getValue(piAge[1:K]))
-print("sigma = ", getValue(sigma[1:K]))
+println("alpha = ", getValue(alpha))
+println("beta = ", getValue(beta[1:K]))
+println("piInc = ", getValue(piInc[1:K+1]))
+println("piAge = ", getValue(piAge[1:K+1]))
+println("sigma = ", getValue(sigma[1:K+1]))
+
 
 
