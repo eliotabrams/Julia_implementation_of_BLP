@@ -35,7 +35,7 @@ in,top=1in,bottom=1in}
       macro,module,otherwise,quote,return,switch,true,try,type,typealias,%
       using,while},%
    sensitive=true,%
-  % alsoother={$},%
+   alsoother={\$},%
    morecomment=[l]\#,%
    morecomment=[n]{\#=}{=\#},%
    morestring=[s]{"}{"},%
@@ -105,14 +105,14 @@ and
 \[ Y^p_{n} = \alpha + \Pi_{\mathrm{inc}}^{(K+1)}\mathrm{inc}_n + \Pi_{\mathrm{age}}^{(K+1)}\mathrm{age}_n + \sigma_{K+1}\nu_n^{K+1}. \]
 
 \section*{Question 4}
-As described in the section below, the solver does not converge for our current BLP implementation. The estimates we return here are KNITRO's best guess for the parameters after running for 30 iterations. Note that KNITRO does not throw up any errors or warnings and there is limited improvement in teh objective after about 10 iterations. With that disclaimer, our estimates are:
+As described in the section below, the solver does not converge for our current BLP implementation. The estimates we return here are KNITRO's best guess for the parameters after running for 30 iterations. Note that KNITRO does not throw up any errors or warnings and there is limited improvement in the objective after about 10 iterations. With that disclaimer, our estimates are:
 \[
 \hat\alpha = -0.8699, \quad
 \hat\beta = \left[ \begin{array}{r} 
 0.9638 \\ 2.6917 \\ 1.0280 \\ 1.3045
 \end{array}\right],
 \]
-$\beta$ is ordered such that the first element refers to the coefficient on the constant and the second through fourth refer to the coefficients on variables $x_1, x_2,$ and $x_3$ respectively.
+$\hat\beta$ is ordered such that the first element refers to the coefficient on the constant and the second through fourth refer to the coefficients on variables $x_1, x_2,$ and $x_3$ respectively.
 
 \noindent Further,
 \[
@@ -128,10 +128,13 @@ $\beta$ is ordered such that the first element refers to the coefficient on the 
 -4.0364e^{-12} \\ -0.9308 \\ -0.1276 \\ -1.7015 \\ -1.5043
 \end{array}\right].
 \]
+Where the estimates above are ordered such that the first element contains the random coefficient that impact the constant, the second though fourth elements contain the coefficients that impact $x_1$, $x_2$ and $x_3$, and the fifth element contains the coefficient that impacts the price.
 
-Where these estimates are ordered such that the first element contains the random coefficients that impact $\alpha$, the second element contains the coefficients that impact the constant, and the third through fifth elements contain the the random coefficients that impact coefficients on variables $x_1, x_2,$ and $x_3$ respectively.
+Comparing the full BLP estimates with the simple logit estimates, we can see that $\hat\beta$ is similar in both approaches. This suggests that, despite the computational effort that computing the full BLP model engenders, there might not be a huge gain as far the value of estimates go. From $\hat\Pi_{\mathrm{inc}}$, $\hat\Pi_{\mathrm{age}}$ and $\hat\sigma$ we can also conclude that the value buying an inside good does not change too much between people with different demographic characteristics. 
 
-Comparing the full BLP estimates with the simple logit estimates, we can see that .... NEED TO COMPLETE
+Finally, the BLP estimation returns a negative value for $\hat\alpha$. This makes little economic sense, meaning that a high price is a desirable feature of a product, even when controlling for the product's characteristics (so we can rule out situations in which a high price could be perceived as a signal for high (unobservable) quality, for example). In particular, we would get positive own-price elasticities and a positively sloped demand function.
+
+This fact -- that $\hat\alpha$ is negative -- is a strong suggestion that our estimate is wrong, either because of some issue in the estimation procedure or because we forced the solver to stop after 30 iterations. Unfortunately, due to time constraints, we could not pursue alternative strategies before the due date of this problem set. A potential ``bright side" of our recent endeavor is that we were able to get some results for the BLP estimates without having to manually code derivatives and feed them to the solver. Perhaps with some more work we could find ``better" results while still pursuing that approach.
 
 
 
@@ -147,7 +150,7 @@ However, unsurprisingly, the full BLP problem proved to be much more demanding o
 Pkg.checkout("JuMP")
 Pkg.update()
 \end{lstlisting}
-At the same time, we also switched to using the KNITRO solver and disabled the auto-differentiation of the Hessian (by deleting the text ":Hess" in line 341 in the source code at JuMP/src/nlp.jl). The results we present for question 3 are then based on this last approach (Julia + JuMP development version + KNITRO); the optimization does not converge yet, but, on the other hand, neither JuMP nor KNITRO is returning any errors or warnings and the parameters seem to evolve nicely with each iteration. 
+At the same time, we also switched to using the KNITRO solver and disabled the auto-differentiation of the Hessian (to try to gain time) by slightly changing the source code of JuMP\footnote{This is easily done by deleting the text ":Hess" in line 341 in the source code at JuMP/src/nlp.jl.}. The results we present for question 4 are based on this last approach (Julia + JuMP development version + KNITRO); the optimization does not converge yet, but, on the other hand, neither JuMP nor KNITRO are returning any errors or warnings and the parameter values seem to evolve nicely with each iteration. 
 
 Separately, we also tried to directly submit the BLP model to the Ipopt solver (without using JuMP to build the internal model). This approach involved manually coding the exact Jacobian of the constraints. Unfortunately, this approach has not worked for us. Ipopt returns a  segmentation error upon trying to call the Jacobian.
 
@@ -277,8 +280,7 @@ KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=100));
     BLP,
     denom[n=1:N],
     sum{
-        exp(beta[1]
-            -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]
+        exp(-(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[h]
             +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[h,k],
              k=1:K} +xi[h] ) , h=1:J}
 );
@@ -287,8 +289,7 @@ KTR_PARAM_OUTMODE=2, KTR_PARAM_LINSOLVER=5, KTR_PARAM_MAXIT=100));
     constr[j=1:J], 
     s[j]==(1/N)*
         sum{
-            exp(beta[1]
-                -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[j]
+            exp( -(alpha+piInc[K+1]*inc[n]+piAge[K+1]*age[n]+sigma[K+1]*v[n,K+1])*p[j]
                  +sum{(beta[k]+piInc[k]*inc[n]+piAge[k]*age[n]+sigma[k]*v[n,k])*x[j,k],
                 k=1:K} +xi[j])/denom[n] ,n=1:N}
 );
